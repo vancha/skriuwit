@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Skriuwit
+Comment=document manager
+Type=Application
+Icon=com.github.vancha.skriuwit
+Exec=skriuwit %F
+Terminal=false
+StartupNotify=true
+Categories=COSMIC
+Keywords=COSMIC
+MimeType=
