@@ -115,15 +115,16 @@ impl cosmic::Application for AppModel {
 
     /// Elements to pack at the start of the header bar.
     fn header_start(&self) -> Vec<Element<Self::Message>> {
-        /*let menu_bar = menu::bar(vec![menu::Tree::with_children(
-            menu::root(fl!("view")),
+        let menu_bar = menu::bar(vec![menu::Tree::with_children(
+            //menu::root(fl!("view").into_fragment()), //Does not compile
+	        Element::from(menu::root(fl!("view"))),
             menu::items(
                 &self.key_binds,
                 vec![menu::Item::Button(fl!("about"), None, MenuAction::About)],
             ),
         )]);
-        */
-        vec![]
+
+        vec![menu_bar.into()]
     }
 
     /// Enables the COSMIC application to create a nav bar with this model.
