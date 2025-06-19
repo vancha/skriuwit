@@ -42,3 +42,15 @@ Developers should install [rustup][rustup] and configure their editor to use [ru
 [rust-analyzer]: https://rust-analyzer.github.io/
 [mold]: https://github.com/rui314/mold
 [sccache]: https://github.com/mozilla/sccache
+
+
+
+## Relevant learning material for iced based applications
+
+https://github.com/fogarecious/iced_tutorial
+https://jl710.github.io/iced-guide/    
+https://docs.rs/iced/latest/iced/          the official iced docs
+https://book.iced.rs/                      the official iced book
+
+https://pop-os.github.io/libcosmic/cosmic/ the official libcosmic docs
+https://pop-os.github.io/libcosmic-book/   the official libcosmic book
