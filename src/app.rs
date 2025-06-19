@@ -12,6 +12,8 @@ use cosmic::{cosmic_theme, theme};
 use futures_util::SinkExt;
 use std::collections::HashMap;
 
+use crate::models::documentmanager::DocumentManager;
+
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps/icon.svg");
 
@@ -28,6 +30,8 @@ pub struct AppModel {
     key_binds: HashMap<menu::KeyBind, MenuAction>,
     // Configuration data that persists between application runs.
     config: Config,
+    //The object responsible for filtering and retrieving the documents
+    document_manager: DocumentManager,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -69,22 +73,11 @@ impl cosmic::Application for AppModel {
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         // Create a nav bar with three page items.
         let mut nav = nav_bar::Model::default();
-
         nav.insert()
             .text(fl!("page-id", num = 1))
             .data::<Page>(Page::Page1)
             .icon(icon::from_name("applications-science-symbolic"))
             .activate();
-
-        nav.insert()
-            .text(fl!("page-id", num = 2))
-            .data::<Page>(Page::Page2)
-            .icon(icon::from_name("applications-system-symbolic"));
-
-        nav.insert()
-            .text(fl!("page-id", num = 3))
-            .data::<Page>(Page::Page3)
-            .icon(icon::from_name("applications-games-symbolic"));
 
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
@@ -105,6 +98,7 @@ impl cosmic::Application for AppModel {
                     }
                 })
                 .unwrap_or_default(),
+	    document_manager: DocumentManager::new(),
         };
 
         // Create a startup command that sets the window title.
@@ -218,6 +212,7 @@ impl cosmic::Application for AppModel {
             }
 
             Message::UpdateConfig(config) => {
+                println!("The config of this app has been changed: {:?}",config);
                 self.config = config;
             }
 

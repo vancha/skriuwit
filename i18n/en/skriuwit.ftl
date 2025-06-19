@@ -1,4 +1,4 @@
-app-title = Skriuwit
+app-title = Skriuw it
 about = About
 view = View
 welcome = Welcome to COSMIC! ✨
