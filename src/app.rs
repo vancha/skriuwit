@@ -178,6 +178,15 @@ impl cosmic::Application for AppModel {
             .align_x(Horizontal::Center)
             .align_y(Vertical::Center)
             .into()*/
+        /*
+            To add:
+                one single row! for the search bar
+                one single scrollable, that holds:
+                    for every document:
+                        a row with
+                            two columns:
+                                Image | (name, tags, date added)
+        */
         widget::column::Column::from_vec(
             self.documents
                 .iter()
