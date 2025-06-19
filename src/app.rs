@@ -187,11 +187,25 @@ impl cosmic::Application for AppModel {
                             two columns:
                                 Image | (name, tags, date added)
         */
-        widget::column::Column::from_vec(
-            self.documents
-                .iter()
-                .map(|document| cosmic::widget::text::body(&document.title).into())
-                .collect::<Vec<_>>()
+        cosmic::widget::scrollable(
+            widget::column::Column::from_vec(
+                self.documents
+                    .iter()
+                    .map(
+                        |document| cosmic::widget::row::with_children(
+                                        vec![
+                                            cosmic::widget::icon(document.icon.clone()).width(Length::Fixed(100.0)).height(Length::Fixed(100.0)).into(),
+                                            cosmic::widget::text::body(&document.title).into()
+                                        ]
+                                    )
+                                        .width(Length::Fill)
+                                        .into()
+                            //cosmic::widget::text::body(&document.title).into()
+                    
+                    )
+                    .collect::<Vec<_>>()
+            )
+            .width(Length::Fill)
         ).into()
     }
 
