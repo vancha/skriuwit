@@ -33,7 +33,7 @@ pub struct AppModel {
     // Configuration data that persists between application runs.
     config: Config,
     //The object responsible for filtering and retrieving the documents
-    documents: Vec<Document>,//DocumentManager,
+    documents: Vec<Document>, //DocumentManager,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -47,7 +47,6 @@ pub enum Message {
     LaunchUrl(String),
 }
 
-
 impl AppModel {
     async fn pew_pew() -> Vec<Document> {
         let mut x = vec![];
@@ -57,7 +56,6 @@ impl AppModel {
         x
     }
 }
-
 
 /// Create a COSMIC application from the app model
 impl cosmic::Application for AppModel {
@@ -80,7 +78,7 @@ impl cosmic::Application for AppModel {
     fn core_mut(&mut self) -> &mut cosmic::Core {
         &mut self.core
     }
-    
+
     /// Initializes the application with any given flags and startup commands.
     fn init(
         core: cosmic::Core,
@@ -113,30 +111,30 @@ impl cosmic::Application for AppModel {
                     }
                 })
                 .unwrap_or_default(),
-	    documents: vec![],
+            documents: vec![],
         };
 
         // Create a startup task that sets the window title.
         // Also make sure we start loading our documents from disk on app creation
-	let update_title 	= app.update_title();
-	let load_documents 	= cosmic::task::future(async {
-                                let docs = AppModel::pew_pew().await;
-                                Message::DocumentsLoaded(docs)
-                            });
-	                        /*cosmic::task::future(async move {
-                    		    //tokio::time::sleep(Duration::from_millis(3000)).await;
-                    		    let docs = AppModel::pew_pew().await;
-                    			Message::DocumentsLoaded(docs)
-            			       });*/
+        let update_title = app.update_title();
+        let load_documents = cosmic::task::future(async {
+            let docs = AppModel::pew_pew().await;
+            Message::DocumentsLoaded(docs)
+        });
+        /*cosmic::task::future(async move {
+         //tokio::time::sleep(Duration::from_millis(3000)).await;
+         let docs = AppModel::pew_pew().await;
+         Message::DocumentsLoaded(docs)
+        });*/
 
-        (app, Task::batch(vec![update_title, load_documents ]))
+        (app, Task::batch(vec![update_title, load_documents]))
     }
 
     /// Elements to pack at the start of the header bar.
     fn header_start(&self) -> Vec<Element<Self::Message>> {
         let menu_bar = menu::bar(vec![menu::Tree::with_children(
             //menu::root(fl!("view").into_fragment()), //Does not compile
-	        Element::from(menu::root(fl!("view"))),
+            Element::from(menu::root(fl!("view"))),
             menu::items(
                 &self.key_binds,
                 vec![menu::Item::Button(fl!("about"), None, MenuAction::About)],
@@ -172,12 +170,12 @@ impl cosmic::Application for AppModel {
     /// events received by widgets will be passed to the update method.
     fn view(&self) -> Element<Self::Message> {
         /*widget::text::title1(fl!("welcome"))
-            .apply(widget::container)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(Horizontal::Center)
-            .align_y(Vertical::Center)
-            .into()*/
+        .apply(widget::container)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(Horizontal::Center)
+        .align_y(Vertical::Center)
+        .into()*/
         /*
             To add:
                 one single row! for the search bar
@@ -191,22 +189,23 @@ impl cosmic::Application for AppModel {
             widget::column::Column::from_vec(
                 self.documents
                     .iter()
-                    .map(
-                        |document| cosmic::widget::row::with_children(
-                                        vec![
-                                            cosmic::widget::icon(document.icon.clone()).width(Length::Fixed(100.0)).height(Length::Fixed(100.0)).into(),
-                                            cosmic::widget::text::body(&document.title).into()
-                                        ]
-                                    )
-                                        .width(Length::Fill)
-                                        .into()
-                            //cosmic::widget::text::body(&document.title).into()
-                    
-                    )
-                    .collect::<Vec<_>>()
+                    .map(|document| {
+                        cosmic::widget::row::with_children(vec![
+                            cosmic::widget::icon(document.icon.clone())
+                                .width(Length::Fixed(100.0))
+                                .height(Length::Fixed(100.0))
+                                .into(),
+                            cosmic::widget::text::body(&document.title).into(),
+                        ])
+                        .padding(cosmic::iced::Padding::from(20))
+                        .width(Length::Fill)
+                        .into()
+                    })
+                    .collect::<Vec<_>>(),
             )
-            .width(Length::Fill)
-        ).into()
+            .width(Length::Fill),
+        )
+        .into()
     }
 
     /// Register subscriptions for this application.
@@ -241,30 +240,28 @@ impl cosmic::Application for AppModel {
                 _ = open::that_detached(REPOSITORY);
             }
 
+            Message::ToggleContextPage(context_page) => {
+                if self.context_page == context_page {
+                    // Close the context drawer if the toggled context page is the same.
+                    self.core.window.show_context = !self.core.window.show_context;
+                } else {
+                    // Open the context drawer to display the requested context page.
+                    self.context_page = context_page;
+                    self.core.window.show_context = true;
+                }
+            }
+            //This should initiate the actual loading, and perform it asynchronously. Only called during application startup
+            Message::LoadDocumentsFromDisk => {
+                println!("Loading  all documents from disk");
+            }
 
-	    Message::ToggleContextPage(context_page) => {
-		if self.context_page == context_page {
-		    // Close the context drawer if the toggled context page is the same.
-		    self.core.window.show_context = !self.core.window.show_context;
-		} else {
-		    // Open the context drawer to display the requested context page.
-		    self.context_page = context_page;
-		    self.core.window.show_context = true;
-		}
-	    }
-	   //This should initiate the actual loading, and perform it asynchronously. Only called during application startup
-	    Message::LoadDocumentsFromDisk => {
-		    println!("Loading  all documents from disk"); 
-        }
-        
-        
-	    Message::DocumentsLoaded(documents) => {
-	        self.documents = documents;
-		    println!("loaded all documents, {} in total", self.documents.len());
-	    }
+            Message::DocumentsLoaded(documents) => {
+                self.documents = documents;
+                println!("loaded all documents, {} in total", self.documents.len());
+            }
 
             Message::UpdateConfig(config) => {
-                println!("The config of this app has been changed: {:?}",config);
+                println!("The config of this app has been changed: {:?}", config);
                 self.config = config;
             }
 
