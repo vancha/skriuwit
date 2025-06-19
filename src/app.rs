@@ -50,7 +50,11 @@ pub enum Message {
 
 impl AppModel {
     async fn pew_pew() -> Vec<Document> {
-        vec![Document::new()]
+        let mut x = vec![];
+        for i in 0..100 {
+            x.push(Document::new());
+        }
+        x
     }
 }
 
@@ -167,13 +171,19 @@ impl cosmic::Application for AppModel {
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
     fn view(&self) -> Element<Self::Message> {
-        widget::text::title1(fl!("welcome"))
+        /*widget::text::title1(fl!("welcome"))
             .apply(widget::container)
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(Horizontal::Center)
             .align_y(Vertical::Center)
-            .into()
+            .into()*/
+        widget::column::Column::from_vec(
+            self.documents
+                .iter()
+                .map(|document| cosmic::widget::text::body(&document.title).into())
+                .collect::<Vec<_>>()
+        ).into()
     }
 
     /// Register subscriptions for this application.
@@ -221,13 +231,13 @@ impl cosmic::Application for AppModel {
 	    }
 	   //This should initiate the actual loading, and perform it asynchronously. Only called during application startup
 	    Message::LoadDocumentsFromDisk => {
-		println!("Loading  all documents from disk"); 
+		    println!("Loading  all documents from disk"); 
         }
         
         
 	    Message::DocumentsLoaded(documents) => {
 	        self.documents = documents;
-		    println!("loaded all documents!");
+		    println!("loaded all documents, {} in total", self.documents.len());
 	    }
 
             Message::UpdateConfig(config) => {

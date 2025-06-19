@@ -3,7 +3,7 @@ use cosmic::widget::icon;
 #[derive(Debug, Clone)]
 pub struct Document {
     icon: icon::Handle,
-    title: String,
+    pub title: String,
     added_date: String,
 }
 
