@@ -4,7 +4,7 @@ use cosmic::widget::icon;
 pub struct Document {
     pub icon: icon::Handle,
     pub title: String,
-    added_date: String,
+    pub added_date: String,
 }
 
 impl Document {
@@ -12,7 +12,7 @@ impl Document {
         Self {
             icon: icon::from_name("text-x-generic").into(),
             title: String::from("invoice_2025.pdf"),
-            added_date: String::from("Today"),
+            added_date: String::from("2025-06-14"),
         }
     }
 }

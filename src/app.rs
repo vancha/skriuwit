@@ -5,9 +5,9 @@ use crate::fl;
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::alignment::{Horizontal, Vertical};
-use cosmic::iced::{Alignment, Length, Subscription};
+use cosmic::iced::{Alignment, Length, Padding, Subscription};
 use cosmic::prelude::*;
-use cosmic::widget::{self, icon, menu, nav_bar};
+use cosmic::widget::{self, button, Column, icon, menu, nav_bar,Row,text };
 use cosmic::{cosmic_theme, theme};
 use futures_util::SinkExt;
 use std::collections::HashMap;
@@ -48,9 +48,9 @@ pub enum Message {
 }
 
 impl AppModel {
-    async fn pew_pew() -> Vec<Document> {
+    async fn load_documents_from_disk() -> Vec<Document> {
         let mut x = vec![];
-        for i in 0..100 {
+        for i in 0..1000 {
             x.push(Document::new());
         }
         x
@@ -86,11 +86,25 @@ impl cosmic::Application for AppModel {
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         // Create a nav bar with three page items.
         let mut nav = nav_bar::Model::default();
-        nav.insert()
+        /*nav.insert()
             .text(fl!("page-id", num = 1))
             .data::<Page>(Page::Page1)
             .icon(icon::from_name("applications-science-symbolic"))
-            .activate();
+            .activate();*/
+        nav.insert()
+            .text("finance")
+            .data::<Page>(Page::Page1)
+            .divider_above(true);
+        nav.insert()
+            .text("personal")
+            .data::<Page>(Page::Page1);
+        nav.insert()
+            .text("work")
+            .data::<Page>(Page::Page1);
+        nav.insert()
+            .text("insurance")
+            .data::<Page>(Page::Page1);
+            
 
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
@@ -118,14 +132,9 @@ impl cosmic::Application for AppModel {
         // Also make sure we start loading our documents from disk on app creation
         let update_title = app.update_title();
         let load_documents = cosmic::task::future(async {
-            let docs = AppModel::pew_pew().await;
+            let docs = AppModel::load_documents_from_disk().await;
             Message::DocumentsLoaded(docs)
         });
-        /*cosmic::task::future(async move {
-         //tokio::time::sleep(Duration::from_millis(3000)).await;
-         let docs = AppModel::pew_pew().await;
-         Message::DocumentsLoaded(docs)
-        });*/
 
         (app, Task::batch(vec![update_title, load_documents]))
     }
@@ -143,7 +152,11 @@ impl cosmic::Application for AppModel {
 
         vec![menu_bar.into()]
     }
-
+    
+    fn header_center(&self) -> Vec<Element<Self::Message>> {
+        vec![text::body("Personal Document Manager").into()]
+    }
+    
     /// Enables the COSMIC application to create a nav bar with this model.
     fn nav_model(&self) -> Option<&nav_bar::Model> {
         Some(&self.nav)
@@ -176,28 +189,25 @@ impl cosmic::Application for AppModel {
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
         .into()*/
-        /*
-            To add:
-                one single row! for the search bar
-                one single scrollable, that holds:
-                    for every document:
-                        a row with
-                            two columns:
-                                Image | (name, tags, date added)
-        */
         cosmic::widget::scrollable(
-            widget::column::Column::from_vec(
+            Column::from_vec(
                 self.documents
                     .iter()
                     .map(|document| {
-                        cosmic::widget::row::with_children(vec![
-                            cosmic::widget::icon(document.icon.clone())
+                        Row::with_children(vec![
+                            icon(document.icon.clone())
                                 .width(Length::Fixed(100.0))
                                 .height(Length::Fixed(100.0))
                                 .into(),
-                            cosmic::widget::text::body(&document.title).into(),
+                            Column::from_vec(
+                                vec![
+                                    text::heading(&document.title).into(),
+                                    button::text("BAGUETTE").into(),
+                                    text::body("Added: ".to_owned() + &document.added_date).into(),
+                                ]
+                            ).into(),
                         ])
-                        .padding(cosmic::iced::Padding::from(20))
+                        .padding(Padding::from(20))
                         .width(Length::Fill)
                         .into()
                     })
@@ -214,7 +224,6 @@ impl cosmic::Application for AppModel {
     /// emit messages to the application through a channel. They are started at the
     /// beginning of the application, and persist through its lifetime.
     fn subscription(&self) -> Subscription<Self::Message> {
-        struct MySubscription;
 
         Subscription::batch(vec![
             // Watch for application configuration changes.
@@ -279,8 +288,7 @@ impl cosmic::Application for AppModel {
     fn on_nav_select(&mut self, id: nav_bar::Id) -> Task<cosmic::Action<Self::Message>> {
         // Activate the page in the model.
         self.nav.activate(id);
-
-        self.update_title()
+        Task::none()
     }
 }
 
