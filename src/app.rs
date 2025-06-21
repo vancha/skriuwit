@@ -4,15 +4,11 @@ use crate::config::Config;
 use crate::fl;
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
-use cosmic::iced::alignment::{Horizontal, Vertical};
 use cosmic::iced::{Alignment, Length, Padding, Subscription};
 use cosmic::prelude::*;
 use cosmic::widget::{self, Column, Row, button, icon, menu, nav_bar, text};
 use cosmic::{cosmic_theme, theme};
-use futures_util::SinkExt;
 use std::collections::HashMap;
-use std::path::Path;
-use std::time::Duration;
 
 use crate::models::document::Document;
 
@@ -42,7 +38,6 @@ pub struct AppModel {
 pub enum Message {
     OpenRepositoryUrl,
     ToggleContextPage(ContextPage),
-    LoadDocumentsFromDisk,
     DocumentsLoaded(Vec<Document>),
     SearchFieldInputChanged(String),
     UpdateConfig(Config),
@@ -52,7 +47,7 @@ pub enum Message {
 impl AppModel {
     async fn load_documents_from_disk() -> Vec<Document> {
         let mut x = vec![];
-        for i in 0..1000 {
+        for _ in 0..1000 {
             x.push(Document::new());
         }
         x
@@ -88,18 +83,12 @@ impl cosmic::Application for AppModel {
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         // Create a nav bar with three page items.
         let mut nav = nav_bar::Model::default();
-        /*nav.insert()
-        .text(fl!("page-id", num = 1))
-        .data::<Page>(Page::Page1)
-        .icon(icon::from_name("applications-science-symbolic"))
-        .activate();*/
         nav.insert()
             .text("finance")
-            .data::<Page>(Page::Page1)
             .divider_above(true);
-        nav.insert().text("personal").data::<Page>(Page::Page1);
-        nav.insert().text("work").data::<Page>(Page::Page1);
-        nav.insert().text("insurance").data::<Page>(Page::Page1);
+        nav.insert().text("personal");//.data::<Page>(Page::Page1);
+        nav.insert().text("work");//.data::<Page>(Page::Page1);
+        nav.insert().text("insurance");//.data::<Page>(Page::Page1);
 
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
@@ -269,10 +258,6 @@ impl cosmic::Application for AppModel {
                     self.core.window.show_context = true;
                 }
             }
-            //This should initiate the actual loading, and perform it asynchronously. Only called during application startup
-            Message::LoadDocumentsFromDisk => {
-                println!("Loading  all documents from disk");
-            }
 
             Message::DocumentsLoaded(documents) => {
                 self.documents = documents;
@@ -354,12 +339,6 @@ impl AppModel {
     }
 }
 
-/// The page to display in the application.
-pub enum Page {
-    Page1,
-    Page2,
-    Page3,
-}
 
 /// The context page to display in the context drawer.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
