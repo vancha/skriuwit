@@ -7,7 +7,7 @@ use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::alignment::{Horizontal, Vertical};
 use cosmic::iced::{Alignment, Length, Padding, Subscription};
 use cosmic::prelude::*;
-use cosmic::widget::{self, button, Column, icon, menu, nav_bar,Row,text };
+use cosmic::widget::{self, Column, Row, button, icon, menu, nav_bar, text};
 use cosmic::{cosmic_theme, theme};
 use futures_util::SinkExt;
 use std::collections::HashMap;
@@ -22,6 +22,7 @@ const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
 pub struct AppModel {
+    search_field_buffer: String,
     /// Application state which is managed by the COSMIC runtime.
     core: cosmic::Core,
     /// Display a context drawer with the designated page if defined.
@@ -43,6 +44,7 @@ pub enum Message {
     ToggleContextPage(ContextPage),
     LoadDocumentsFromDisk,
     DocumentsLoaded(Vec<Document>),
+    SearchFieldInputChanged(String),
     UpdateConfig(Config),
     LaunchUrl(String),
 }
@@ -87,30 +89,24 @@ impl cosmic::Application for AppModel {
         // Create a nav bar with three page items.
         let mut nav = nav_bar::Model::default();
         /*nav.insert()
-            .text(fl!("page-id", num = 1))
-            .data::<Page>(Page::Page1)
-            .icon(icon::from_name("applications-science-symbolic"))
-            .activate();*/
+        .text(fl!("page-id", num = 1))
+        .data::<Page>(Page::Page1)
+        .icon(icon::from_name("applications-science-symbolic"))
+        .activate();*/
         nav.insert()
             .text("finance")
             .data::<Page>(Page::Page1)
             .divider_above(true);
-        nav.insert()
-            .text("personal")
-            .data::<Page>(Page::Page1);
-        nav.insert()
-            .text("work")
-            .data::<Page>(Page::Page1);
-        nav.insert()
-            .text("insurance")
-            .data::<Page>(Page::Page1);
-            
+        nav.insert().text("personal").data::<Page>(Page::Page1);
+        nav.insert().text("work").data::<Page>(Page::Page1);
+        nav.insert().text("insurance").data::<Page>(Page::Page1);
 
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
             core,
             context_page: ContextPage::default(),
             nav,
+            search_field_buffer: String::from(""),
             key_binds: HashMap::new(),
             // Optional configuration file for an application.
             config: cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
@@ -152,11 +148,11 @@ impl cosmic::Application for AppModel {
 
         vec![menu_bar.into()]
     }
-    
+
     fn header_center(&self) -> Vec<Element<Self::Message>> {
         vec![text::body("Personal Document Manager").into()]
     }
-    
+
     /// Enables the COSMIC application to create a nav bar with this model.
     fn nav_model(&self) -> Option<&nav_bar::Model> {
         Some(&self.nav)
@@ -189,32 +185,43 @@ impl cosmic::Application for AppModel {
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
         .into()*/
-        cosmic::widget::scrollable(
-            Column::from_vec(
-                self.documents
-                    .iter()
-                    .map(|document| {
-                        Row::with_children(vec![
-                            icon(document.icon.clone())
-                                .width(Length::Fixed(100.0))
-                                .height(Length::Fixed(100.0))
-                                .into(),
-                            Column::from_vec(
-                                vec![
+        Column::from_vec(vec![
+            cosmic::widget::text_input("Search", &self.search_field_buffer)
+                .on_input(Message::SearchFieldInputChanged)
+                .into(),
+            //text::body("search here").into(),
+            cosmic::widget::scrollable(
+                Column::from_vec(
+                    self.documents
+                        .iter()
+                        .map(|document| {
+                            Row::with_children(vec![
+                                icon(document.icon.clone())
+                                    .width(Length::Fixed(100.0))
+                                    .height(Length::Fixed(100.0))
+                                    .into(),
+                                Column::from_vec(vec![
                                     text::heading(&document.title).into(),
                                     button::text("BAGUETTE").into(),
                                     text::body("Added: ".to_owned() + &document.added_date).into(),
-                                ]
-                            ).into(),
-                        ])
-                        .padding(Padding::from(20))
-                        .width(Length::Fill)
-                        .into()
-                    })
-                    .collect::<Vec<_>>(),
+                                ])
+                                .into(),
+                            ])
+                            //.padding(Padding::from(20))
+                            .width(Length::Fill)
+                            .into()
+                        })
+                        .collect::<Vec<_>>(),
+                )
+                .spacing(cosmic::iced::Pixels::from(20.0))
+                .width(Length::Fill),
             )
-            .width(Length::Fill),
-        )
+            .into(),
+        ])
+        .spacing(cosmic::iced::Pixels::from(20.0))
+        .padding(Padding::from(20))
+        .width(Length::Fill)
+        .height(Length::Fill)
         .into()
     }
 
@@ -224,7 +231,6 @@ impl cosmic::Application for AppModel {
     /// emit messages to the application through a channel. They are started at the
     /// beginning of the application, and persist through its lifetime.
     fn subscription(&self) -> Subscription<Self::Message> {
-
         Subscription::batch(vec![
             // Watch for application configuration changes.
             self.core()
@@ -247,6 +253,10 @@ impl cosmic::Application for AppModel {
         match message {
             Message::OpenRepositoryUrl => {
                 _ = open::that_detached(REPOSITORY);
+            }
+            Message::SearchFieldInputChanged(content) => {
+                self.search_field_buffer = content; //String::from(content);
+                //println!("The current value of the search field is {}",content);
             }
 
             Message::ToggleContextPage(context_page) => {
