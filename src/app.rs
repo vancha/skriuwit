@@ -9,8 +9,10 @@ use cosmic::prelude::*;
 use cosmic::widget::{self, Column, Row, button, icon, menu, nav_bar, text};
 use cosmic::{cosmic_theme, theme};
 use std::collections::HashMap;
-
+use crate::components::document_store::DocumentStore;
+use crate::components::search_engine::DocumentSearchEngine;
 use crate::models::document::Document;
+use std::path::PathBuf;
 
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps/icon.svg");
@@ -31,6 +33,9 @@ pub struct AppModel {
     config: Config,
     //The object responsible for filtering and retrieving the documents
     documents: Vec<Document>, //DocumentManager,
+
+    engine: DocumentSearchEngine,
+    store: DocumentStore,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -42,6 +47,8 @@ pub enum Message {
     SearchFieldInputChanged(String),
     UpdateConfig(Config),
     LaunchUrl(String),
+    ChooseFile,
+    AddFile(PathBuf),
 }
 
 impl AppModel {
@@ -90,6 +97,9 @@ impl cosmic::Application for AppModel {
         nav.insert().text("work");//.data::<Page>(Page::Page1);
         nav.insert().text("insurance");//.data::<Page>(Page::Page1);
 
+        let engine = DocumentSearchEngine::new();
+        let fut = engine.get_all_documents(); // can this be done prettier? probbably but i have borrow/moving compile errors
+        let store = DocumentStore::new();
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
             core,
@@ -111,16 +121,20 @@ impl cosmic::Application for AppModel {
                 })
                 .unwrap_or_default(),
             documents: vec![],
+            engine: engine,
+            store: store,
         };
 
         // Create a startup task that sets the window title.
         // Also make sure we start loading our documents from disk on app creation
+        
         let update_title = app.update_title();
         let load_documents = cosmic::task::future(async {
-            let docs = AppModel::load_documents_from_disk().await;
+            let docs = fut; // can this be done prettier? probbably but i have borrow/moving compile errors 
+            // also do we need this?
+            // probably have to call DB at this stage and load saved settings
             Message::DocumentsLoaded(docs)
         });
-
         (app, Task::batch(vec![update_title, load_documents]))
     }
 
@@ -173,10 +187,13 @@ impl cosmic::Application for AppModel {
         .height(Length::Fill)
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
-        .into()*/
+        .into()*/  
         Column::from_vec(vec![
             cosmic::widget::text_input("Search", &self.search_field_buffer)
                 .on_input(Message::SearchFieldInputChanged)
+                .into(),
+            cosmic::widget::button::text("Add Document")
+                .on_press(Message::ChooseFile)
                 .into(),
             //text::body("search here").into(),
             cosmic::widget::scrollable(
@@ -275,6 +292,30 @@ impl cosmic::Application for AppModel {
                     eprintln!("failed to open {url:?}: {err}");
                 }
             },
+
+            Message::ChooseFile => {
+                return cosmic::task::future(async {
+                    match rfd::FileDialog::new().pick_file() {
+                        Some(path) => Message::AddFile(path),
+                        None => {
+                            // user canceled the dialog
+                            // dont really know what to do here
+                            return Message::DocumentsLoaded(vec![]);
+                        }
+                    }
+                });
+            },
+
+            Message::AddFile(path) => {
+                let title = path.file_name()
+                .and_then(|name| name.to_str())
+                    .unwrap_or("Unknown")
+                    .to_string();
+                let date = "testdate".to_string();
+                let doc = Document::from_fields(title,date,path);
+                self.engine.add_document(doc.clone());
+                self.documents.push(doc);
+            }
         }
         Task::none()
     }
