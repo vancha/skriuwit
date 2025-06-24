@@ -2,6 +2,13 @@
 
 document manager
 
+### Dependencies
+
+Before installing or compiling, install the following dependencies:
+
+- libatk1.0-dev
+- libgtk-3-dev
+
 ## Installation
 
 A [justfile](./justfile) is included by default for the [casey/just][just] command runner.
