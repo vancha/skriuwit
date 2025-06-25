@@ -1,5 +1,7 @@
 use std::path::Path;
 use whoami;
+use sqlx::sqlite::SqlitePoolOptions;
+
 use crate::models::document::Document;
 
 pub struct DocumentStore {

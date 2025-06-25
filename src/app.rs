@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::config::Config;
-use crate::fl;
-use cosmic::app::context_drawer;
-use cosmic::cosmic_config::{self, CosmicConfigEntry};
-use cosmic::iced::{Alignment, Length, Padding, Subscription};
-use cosmic::prelude::*;
-use cosmic::widget::{self, Column, Row, button, icon, menu, nav_bar, text};
-use cosmic::{cosmic_theme, theme};
-use std::collections::HashMap;
 use crate::components::document_store::DocumentStore;
 use crate::components::search_engine::DocumentSearchEngine;
+use crate::config::Config;
+use crate::fl;
 use crate::models::document::Document;
+use cosmic::app::context_drawer;
+use cosmic::cosmic_config::{self, CosmicConfigEntry};
+use cosmic::iced::{Alignment, Length, Padding, Pixels, Subscription};
+use cosmic::prelude::*;
+use cosmic::widget::{self, Column, Row, button, icon, menu, nav_bar, scrollable, text, text_input};
+use cosmic::{cosmic_theme, theme};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
@@ -48,17 +48,7 @@ pub enum Message {
     UpdateConfig(Config),
     LaunchUrl(String),
     ChooseFile,
-    AddFile(PathBuf),
-}
-
-impl AppModel {
-    async fn load_documents_from_disk() -> Vec<Document> {
-        let mut x = vec![];
-        for _ in 0..1000 {
-            x.push(Document::new());
-        }
-        x
-    }
+    AddFile(Option<PathBuf>),
 }
 
 /// Create a COSMIC application from the app model
@@ -90,12 +80,10 @@ impl cosmic::Application for AppModel {
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         // Create a nav bar with three page items.
         let mut nav = nav_bar::Model::default();
-        nav.insert()
-            .text("finance")
-            .divider_above(true);
-        nav.insert().text("personal");//.data::<Page>(Page::Page1);
-        nav.insert().text("work");//.data::<Page>(Page::Page1);
-        nav.insert().text("insurance");//.data::<Page>(Page::Page1);
+        nav.insert().text("finance").divider_above(true);
+        nav.insert().text("personal"); //.data::<Page>(Page::Page1);
+        nav.insert().text("work"); //.data::<Page>(Page::Page1);
+        nav.insert().text("insurance"); //.data::<Page>(Page::Page1);
 
         let engine = DocumentSearchEngine::new();
         let fut = engine.get_all_documents(); // can this be done prettier? probbably but i have borrow/moving compile errors
@@ -121,13 +109,13 @@ impl cosmic::Application for AppModel {
                 })
                 .unwrap_or_default(),
             documents: vec![],
-            engine: engine,
-            store: store,
+            engine,
+            store,
         };
 
         // Create a startup task that sets the window title.
         // Also make sure we start loading our documents from disk on app creation
-        
+
         let update_title = app.update_title();
         let load_documents = cosmic::task::future(async {
             let docs = fut; // can this be done prettier? probbably but i have borrow/moving compile errors 
@@ -181,22 +169,14 @@ impl cosmic::Application for AppModel {
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
     fn view(&self) -> Element<Self::Message> {
-        /*widget::text::title1(fl!("welcome"))
-        .apply(widget::container)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(Horizontal::Center)
-        .align_y(Vertical::Center)
-        .into()*/  
         Column::from_vec(vec![
-            cosmic::widget::text_input("Search", &self.search_field_buffer)
+            text_input("Search", &self.search_field_buffer)
                 .on_input(Message::SearchFieldInputChanged)
                 .into(),
-            cosmic::widget::button::text("Add Document")
+            button::text("Add Document")
                 .on_press(Message::ChooseFile)
                 .into(),
-            //text::body("search here").into(),
-            cosmic::widget::scrollable(
+            scrollable(
                 Column::from_vec(
                     self.documents
                         .iter()
@@ -213,18 +193,17 @@ impl cosmic::Application for AppModel {
                                 ])
                                 .into(),
                             ])
-                            //.padding(Padding::from(20))
                             .width(Length::Fill)
                             .into()
                         })
                         .collect::<Vec<_>>(),
                 )
-                .spacing(cosmic::iced::Pixels::from(20.0))
+                .spacing(Pixels::from(20.0))
                 .width(Length::Fill),
             )
             .into(),
         ])
-        .spacing(cosmic::iced::Pixels::from(20.0))
+        .spacing(Pixels::from(20.0))
         .padding(Padding::from(20))
         .width(Length::Fill)
         .height(Length::Fill)
@@ -261,8 +240,7 @@ impl cosmic::Application for AppModel {
                 _ = open::that_detached(REPOSITORY);
             }
             Message::SearchFieldInputChanged(content) => {
-                self.search_field_buffer = content; //String::from(content);
-                //println!("The current value of the search field is {}",content);
+                self.search_field_buffer = content;
             }
 
             Message::ToggleContextPage(context_page) => {
@@ -295,26 +273,22 @@ impl cosmic::Application for AppModel {
 
             Message::ChooseFile => {
                 return cosmic::task::future(async {
-                    match rfd::FileDialog::new().pick_file() {
-                        Some(path) => Message::AddFile(path),
-                        None => {
-                            // user canceled the dialog
-                            // dont really know what to do here
-                            return Message::DocumentsLoaded(vec![]);
-                        }
-                    }
+                    Message::AddFile(rfd::FileDialog::new().pick_file())
                 });
-            },
+            }
 
             Message::AddFile(path) => {
-                let title = path.file_name()
-                .and_then(|name| name.to_str())
-                    .unwrap_or("Unknown")
-                    .to_string();
-                let date = "testdate".to_string();
-                let doc = Document::from_fields(title,date,path);
-                self.engine.add_document(doc.clone());
-                self.documents.push(doc);
+                if let Some(path) = path {
+                    let title = path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("Unknown")
+                        .to_string();
+                    let date = "testdate".to_string();
+                    let doc = Document::from_fields(title, date, path);
+                    self.engine.add_document(doc.clone());
+                    self.documents.push(doc);
+                }
             }
         }
         Task::none()
@@ -324,6 +298,7 @@ impl cosmic::Application for AppModel {
     fn on_nav_select(&mut self, id: nav_bar::Id) -> Task<cosmic::Action<Self::Message>> {
         // Activate the page in the model.
         self.nav.activate(id);
+        //Can this return a message containing the ID of the tag, like Message::TagSelected(tag_id)?
         Task::none()
     }
 }
@@ -379,7 +354,6 @@ impl AppModel {
         }
     }
 }
-
 
 /// The context page to display in the context drawer.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
