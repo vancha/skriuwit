@@ -43,7 +43,6 @@ pub struct AppModel {
 pub enum Message {
     OpenRepositoryUrl,
     ToggleContextPage(ContextPage),
-    DocumentsLoaded(Vec<Document>),
     SearchFieldInputChanged(String),
     UpdateConfig(Config),
     LaunchUrl(String),
@@ -85,9 +84,12 @@ impl cosmic::Application for AppModel {
         nav.insert().text("work"); //.data::<Page>(Page::Page1);
         nav.insert().text("insurance"); //.data::<Page>(Page::Page1);
 
-        let engine = DocumentSearchEngine::new();
-        let fut = engine.get_all_documents(); // can this be done prettier? probbably but i have borrow/moving compile errors
+        let mut engine = DocumentSearchEngine::new();
         let store = DocumentStore::new();
+        let loaded_documents = store.get_all_documents();
+        for doc in &loaded_documents {
+            engine.add_document(doc.clone());
+        }
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
             core,
@@ -108,7 +110,7 @@ impl cosmic::Application for AppModel {
                     }
                 })
                 .unwrap_or_default(),
-            documents: vec![],
+            documents: loaded_documents,
             engine,
             store,
         };
@@ -117,13 +119,8 @@ impl cosmic::Application for AppModel {
         // Also make sure we start loading our documents from disk on app creation
 
         let update_title = app.update_title();
-        let load_documents = cosmic::task::future(async {
-            let docs = fut; // can this be done prettier? probbably but i have borrow/moving compile errors 
-            // also do we need this?
-            // probably have to call DB at this stage and load saved settings
-            Message::DocumentsLoaded(docs)
-        });
-        (app, Task::batch(vec![update_title, load_documents]))
+
+        (app, update_title)
     }
 
     /// Elements to pack at the start of the header bar.
@@ -254,11 +251,6 @@ impl cosmic::Application for AppModel {
                 }
             }
 
-            Message::DocumentsLoaded(documents) => {
-                self.documents = documents;
-                println!("loaded all documents, {} in total", self.documents.len());
-            }
-
             Message::UpdateConfig(config) => {
                 println!("The config of this app has been changed: {:?}", config);
                 self.config = config;
@@ -287,6 +279,7 @@ impl cosmic::Application for AppModel {
                     let date = "testdate".to_string();
                     let doc = Document::from_fields(title, date, path);
                     self.engine.add_document(doc.clone());
+                    self.store.upload_document(&doc);
                     self.documents.push(doc);
                 }
             }
