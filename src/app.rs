@@ -5,11 +5,14 @@ use crate::components::search_engine::DocumentSearchEngine;
 use crate::config::Config;
 use crate::fl;
 use crate::models::document::Document;
+use crate::models::tag::Tag;
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::{Alignment, Length, Padding, Pixels, Subscription};
 use cosmic::prelude::*;
-use cosmic::widget::{self, Column, Row, button, icon, menu, nav_bar, scrollable, text, text_input};
+use cosmic::widget::{
+    self, Column, Row, button, icon, menu, nav_bar, scrollable, text, text_input,
+};
 use cosmic::{cosmic_theme, theme};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -20,6 +23,7 @@ const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
 pub struct AppModel {
+    ///A string meant to hold the state of the text_input used for filtering documents
     search_field_buffer: String,
     /// Application state which is managed by the COSMIC runtime.
     core: cosmic::Core,
@@ -41,13 +45,16 @@ pub struct AppModel {
 /// Messages emitted by the application and its widgets.
 #[derive(Debug, Clone)]
 pub enum Message {
+    //iced/cosmic specific messages
     OpenRepositoryUrl,
     ToggleContextPage(ContextPage),
-    SearchFieldInputChanged(String),
     UpdateConfig(Config),
+    //project specific messages
+    SearchFieldInputChanged(String),
     LaunchUrl(String),
     ChooseFile,
     AddFile(Option<PathBuf>),
+    TagSelected(Tag),
 }
 
 /// Create a COSMIC application from the app model
@@ -78,15 +85,25 @@ impl cosmic::Application for AppModel {
         _flags: Self::Flags,
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         // Create a nav bar with three page items.
-        let mut nav = nav_bar::Model::default();
-        nav.insert().text("finance").divider_above(true);
-        nav.insert().text("personal"); //.data::<Page>(Page::Page1);
-        nav.insert().text("work"); //.data::<Page>(Page::Page1);
-        nav.insert().text("insurance"); //.data::<Page>(Page::Page1);
+
 
         let mut engine = DocumentSearchEngine::new();
         let store = DocumentStore::new();
         let loaded_documents = store.get_all_documents();
+        let loaded_tags     = store.get_all_tags();
+
+        let mut nav = nav_bar::Model::default();
+        for tag in loaded_tags {
+            nav
+                .insert()
+                .text(tag.title.clone())
+                .data::<Tag>(tag.clone());
+        }
+        nav
+                .insert()
+                .text("+ Add Tag");
+
+
         for doc in &loaded_documents {
             engine.add_document(doc.clone());
         }
@@ -239,7 +256,9 @@ impl cosmic::Application for AppModel {
             Message::SearchFieldInputChanged(content) => {
                 self.search_field_buffer = content;
             }
-
+            Message::TagSelected(tag) => {
+                println!("The id of the selected tag is {:?}", tag);
+            }
             Message::ToggleContextPage(context_page) => {
                 if self.context_page == context_page {
                     // Close the context drawer if the toggled context page is the same.
@@ -289,10 +308,14 @@ impl cosmic::Application for AppModel {
 
     /// Called when a nav item is selected.
     fn on_nav_select(&mut self, id: nav_bar::Id) -> Task<cosmic::Action<Self::Message>> {
-        // Activate the page in the model.
+        // Activate the page in the model. We probably don't want to automatically active any these at startup'
         self.nav.activate(id);
-        //Can this return a message containing the ID of the tag, like Message::TagSelected(tag_id)?
-        Task::none()
+        if let Some(tag) = self.nav.data::<Tag>(id) {
+            cosmic::task::message(Message::TagSelected(tag.clone()))
+        } else {
+            //this is where we would handle the button for new tags too likely
+            Task::none()
+        }
     }
 }
 

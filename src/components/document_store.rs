@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::{params, Connection};
 use whoami;
 
-use crate::models::document::Document;
+use crate::models::{ document::Document, tag::Tag };
 
 pub struct DocumentStore {
     conn: Connection,
@@ -25,7 +25,18 @@ impl DocumentStore {
             (),
         ).unwrap();
 
+        conn.execute( // In a future this will save more stuff, icon maybe?, some extra properties?, whatever, save it here.
+            "CREATE TABLE IF NOT EXISTS tags (
+                id  INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                color TEXT NOT NULL
+            )",
+            (),
+        ).unwrap();
+        //let first_tag = Tag::from_fields(0, String::from("finance"), String::from("#0f0"));
         DocumentStore { conn }
+        //d.upload_tag(&first_tag);
+        //d
     }
 
     pub fn get_all_documents(&self) -> Vec<Document> {
@@ -43,6 +54,32 @@ impl DocumentStore {
         }
 
         docs
+    }
+
+    pub fn get_all_tags(&self) -> Vec<Tag> {
+        let mut stmt = self.conn.prepare("SELECT id, title, color FROM tags").unwrap();
+
+        let tag_iter = stmt.query_map([], |row| {
+            Ok(Tag::from_fields(
+                row.get(0).unwrap(),
+                row.get(1).unwrap(),
+                row.get(2).unwrap()
+            ))
+        }).unwrap();
+
+        let mut tags = Vec::new();
+        for tag in tag_iter {
+            println!("encountered an {:?}", tag);
+            tags.push(tag.unwrap());
+        }
+
+        tags
+    }
+     pub fn upload_tag(&self, tag: &Tag) {
+        self.conn.execute(
+            "INSERT OR IGNORE INTO tags (id, title, color) VALUES (?1, ?2, ?3)",
+            params![tag.id, tag.title, tag.hex_color],
+        ).unwrap();
     }
 
     pub fn upload_document(&self, doc: &Document) {

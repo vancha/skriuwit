@@ -16,7 +16,7 @@ open = "5.3.0"
 rust-embed = "8.5.0"
 rfd = "0.13"
 whoami = "1.2.0"
-rusqlite = "0.31"
+rusqlite = { version = "0.31", features = ["bundled"] }
 tokio = { version = "1.41.0", features = ["full"] }
 
 [dependencies.i18n-embed]
