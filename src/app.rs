@@ -182,7 +182,7 @@ impl cosmic::Application for AppModel {
                     .collect::<Vec<_>>(),
             )
             .width(if !self.core.nav_bar_active() {
-                Length::Fixed(285.0)
+                Length::Fixed(288.0)
             } else {
                 Length::Fixed(0.0)
             })
