@@ -44,7 +44,6 @@ impl Document {
         }
     }
 
-    ///This should be a list of tags associated with the document
     pub fn get_tags(&self) -> Vec<&Tag> {
         self.tags.iter().collect::<Vec<_>>()
     }

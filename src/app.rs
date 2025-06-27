@@ -16,6 +16,7 @@ use cosmic::widget::{
 use cosmic::{cosmic_theme, theme};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::collections::HashSet;
 
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps/icon.svg");
@@ -39,6 +40,7 @@ pub struct AppModel {
     documents: Vec<Document>, //DocumentManager,
     engine: DocumentSearchEngine,
     store: DocumentStore,
+    selected_tags:HashSet<Tag>,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -103,6 +105,7 @@ impl cosmic::Application for AppModel {
         for doc in &loaded_documents {
             engine.add_document(doc.clone());
         }
+        let selected_tags = HashSet::new();
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
             core,
@@ -115,6 +118,7 @@ impl cosmic::Application for AppModel {
             documents: loaded_documents,
             engine,
             store,
+            selected_tags
         };
 
         // Create a startup task that sets the window title.
@@ -175,6 +179,7 @@ impl cosmic::Application for AppModel {
                     .into_iter()
                     .map(|tag| {
                         button::text(tag.clone().title)
+                            //.style()
                             .width(Length::Fill)
                             .on_press(Message::TagSelected(tag.clone()))
                     })
@@ -274,12 +279,20 @@ impl cosmic::Application for AppModel {
             Message::OpenRepositoryUrl => {
                 _ = open::that_detached(REPOSITORY);
             }
+
             Message::SearchFieldInputChanged(content) => {
                 self.search_field_buffer = content;
             }
+
             Message::TagSelected(tag) => {
-                println!("The selected tag is {tag:?}");
+                if !self.selected_tags.contains(&tag) {
+                    self.selected_tags.insert(tag);
+                } else {
+                    self.selected_tags.remove(&tag);
+                }
+                self.engine.filter_by_tags(vec![]);
             }
+
             Message::ToggleContextPage(context_page) => {
                 if self.context_page == context_page {
                     // Close the context drawer if the toggled context page is the same.
