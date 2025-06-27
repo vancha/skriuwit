@@ -1,29 +1,91 @@
+use chrono::DateTime;
 use cosmic::widget::icon;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use crate::models::tag::Tag;
+
 #[derive(Debug, Clone)]
 pub struct Document {
     pub icon: icon::Handle,
     pub title: String,
-    pub added_date: String,
+    ///date as a timestamp
+    pub added_date: i64,
     pub path: PathBuf,
+    pub tags: Vec<Tag>,
 }
 
 impl Document {
-    pub fn new() -> Self {
+    pub fn new(path: &Path) -> Self {
+        let icon = icon::from_name("text-x-generic").into();
+        let title = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("Unknown")
+            .to_string();
+        let added_date = chrono::Local::now().timestamp();
+        let path = path.to_path_buf();
+        let tags = vec![];
+
         Self {
-            icon: icon::from_name("text-x-generic").into(),
-            title: String::from("invoice_2025.pdf"),
-            added_date: String::from("2025-06-14"),
-            path: PathBuf::from("/"),
+            icon,
+            title,
+            added_date,
+            path,
+            tags,
         }
     }
 
-    pub fn from_fields(title: String, added_date: String, path: PathBuf) -> Self {
+    pub fn from_fields(title: String, added_date: i64, path: PathBuf) -> Self {
         Self {
             icon: icon::from_name("text-x-generic").into(),
             title,
             added_date,
             path,
+            tags:vec![],
         }
+    }
+
+    ///This should be a list of tags associated with the document
+    pub fn get_tags(&self) -> Vec<&Tag> {
+        self.tags.iter().collect::<Vec<_>>()
+    }
+
+    pub fn pretty_print_added_date(&self) -> String {
+        if let Some(added_date) = DateTime::from_timestamp(self.added_date, 0)
+            && let Some(current_date) =
+                DateTime::from_timestamp(chrono::Local::now().timestamp(), 0)
+        {
+            match current_date - added_date {
+                difference if difference.num_minutes() < 1 => {
+                    format!("{} seconds ago", difference.num_seconds())
+                }
+                difference if difference.num_hours() < 1 => {
+                    format!("{} minutes ago", difference.num_minutes())
+                }
+                difference if difference.num_days() < 1 => {
+                    format!("{} hours ago", difference.num_hours())
+                }
+                difference if difference.num_weeks() < 1 => {
+                    format!("{} days ago", difference.num_days())
+                }
+                difference if difference.num_weeks() < 4 => {
+                    format!("{} weeks ago", difference.num_weeks())
+                }
+                difference if difference.num_weeks() < 52 => {
+                    format!("{} months ago", difference.num_weeks() / 4)
+                }
+                _ => {
+                    "Today somewhere or something".to_string()
+                }
+            }
+        } else {
+            "Unknown date".to_string()
+        }
+    }
+}
+
+/// Convenience function for Document, used to check if a Vec contains a Document
+impl std::cmp::PartialEq for Document {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
     }
 }

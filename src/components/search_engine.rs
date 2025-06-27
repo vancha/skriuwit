@@ -4,7 +4,7 @@ use std::path::Path;
 pub struct DocumentSearchEngine {
     // Structures used to search faster
     // for now it will be only vector :)
-    data: Vec<Document>
+    data: Vec<Document>,
 }
 
 impl DocumentSearchEngine {
@@ -17,9 +17,11 @@ impl DocumentSearchEngine {
     }
 
     pub fn add_document(&mut self, doc: Document) {
-        self.data.push(doc);
+        if !self.data.contains(&doc) {
+            self.data.push(doc);
+        }
     }
-    
+
     pub fn remove_document(&mut self, path: &Path) {
         self.data.retain(|doc| doc.path != path);
     }

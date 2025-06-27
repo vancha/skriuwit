@@ -37,7 +37,6 @@ pub struct AppModel {
     config: Config,
     //The object responsible for filtering and retrieving the documents
     documents: Vec<Document>, //DocumentManager,
-
     engine: DocumentSearchEngine,
     store: DocumentStore,
 }
@@ -85,24 +84,21 @@ impl cosmic::Application for AppModel {
         _flags: Self::Flags,
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         // Create a nav bar with three page items.
-
-
+        let context_page = ContextPage::default();
+        let search_field_buffer = String::from("");
+        let key_binds = HashMap::new();
         let mut engine = DocumentSearchEngine::new();
         let store = DocumentStore::new();
         let loaded_documents = store.get_all_documents();
-        let loaded_tags     = store.get_all_tags();
-
+        let loaded_tags = store.get_all_tags();
+        let config = cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
+            .map(|context| match Config::get_entry(&context) {
+                Ok(config) => config,
+                Err((_errors, config)) => config,
+            })
+            .unwrap_or_default();
         let mut nav = nav_bar::Model::default();
-        for tag in loaded_tags {
-            nav
-                .insert()
-                .text(tag.title.clone())
-                .data::<Tag>(tag.clone());
-        }
-        nav
-                .insert()
-                .text("+ Add Tag");
-
+        nav.insert().text("Document overview").activate();
 
         for doc in &loaded_documents {
             engine.add_document(doc.clone());
@@ -110,23 +106,12 @@ impl cosmic::Application for AppModel {
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
             core,
-            context_page: ContextPage::default(),
+            context_page,
             nav,
-            search_field_buffer: String::from(""),
-            key_binds: HashMap::new(),
+            search_field_buffer,
+            key_binds,
             // Optional configuration file for an application.
-            config: cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
-                .map(|context| match Config::get_entry(&context) {
-                    Ok(config) => config,
-                    Err((_errors, config)) => {
-                        // for why in errors {
-                        //     tracing::error!(%why, "error loading app config");
-                        // }
-
-                        config
-                    }
-                })
-                .unwrap_or_default(),
+            config,
             documents: loaded_documents,
             engine,
             store,
@@ -183,42 +168,78 @@ impl cosmic::Application for AppModel {
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
     fn view(&self) -> Element<Self::Message> {
-        Column::from_vec(vec![
-            text_input("Search", &self.search_field_buffer)
-                .on_input(Message::SearchFieldInputChanged)
-                .into(),
-            button::text("Add Document")
-                .on_press(Message::ChooseFile)
-                .into(),
-            scrollable(
-                Column::from_vec(
-                    self.documents
-                        .iter()
-                        .map(|document| {
-                            Row::with_children(vec![
-                                icon(document.icon.clone())
-                                    .width(Length::Fixed(100.0))
-                                    .height(Length::Fixed(100.0))
-                                    .into(),
-                                Column::from_vec(vec![
-                                    text::heading(&document.title).into(),
-                                    button::text("BAGUETTE").into(),
-                                    text::body("Added: ".to_owned() + &document.added_date).into(),
-                                ])
-                                .into(),
-                            ])
+        Row::from_vec(vec![
+            Column::from_vec(
+                self.store
+                    .get_all_tags()
+                    .into_iter()
+                    .map(|tag| {
+                        button::text(tag.clone().title)
                             .width(Length::Fill)
-                            .into()
-                        })
-                        .collect::<Vec<_>>(),
-                )
-                .spacing(Pixels::from(20.0))
-                .width(Length::Fill),
+                            .on_press(Message::TagSelected(tag.clone()))
+                    })
+                    .map(Into::<Element<Message>>::into)
+                    .collect::<Vec<_>>(),
             )
+            .width(if !self.core.nav_bar_active() {
+                Length::Fixed(285.0)
+            } else {
+                Length::Fixed(0.0)
+            })
+            .into(),
+            Column::from_vec(vec![
+                text_input("Search", &self.search_field_buffer)
+                    .on_input(Message::SearchFieldInputChanged)
+                    .into(),
+                button::text("Add Document")
+                    .on_press(Message::ChooseFile)
+                    .into(),
+                scrollable(
+                    Column::from_vec(
+                        self.documents
+                            .iter()
+                            .map(|document| {
+                                Row::with_children(vec![
+                                    icon(document.icon.clone())
+                                        .width(Length::Fixed(100.0))
+                                        .height(Length::Fixed(100.0))
+                                        .into(),
+                                    Column::from_vec(vec![
+                                        text::heading(&document.title).into(),
+                                        Row::from_vec(
+                                            document
+                                                .get_tags()
+                                                .into_iter()
+                                                .map(|tag| button::text(tag.title.as_str()))
+                                                .map(Into::<Element<Message>>::into)
+                                                .collect::<Vec<_>>(),
+                                        )
+                                        .into(),
+                                        text::body(format!(
+                                            "Added: {}",
+                                            document.pretty_print_added_date()
+                                        ))
+                                        .into(),
+                                    ])
+                                    .into(),
+                                ])
+                                .width(Length::Fill)
+                                .into()
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                    .spacing(Pixels::from(20.0))
+                    .width(Length::Fill)
+                    .height(Length::Shrink),
+                )
+                .into(),
+            ])
+            .spacing(Pixels::from(20.0))
+            .padding(Padding::from(20))
+            .width(Length::FillPortion(3))
+            .height(Length::Fill)
             .into(),
         ])
-        .spacing(Pixels::from(20.0))
-        .padding(Padding::from(20))
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
@@ -257,7 +278,7 @@ impl cosmic::Application for AppModel {
                 self.search_field_buffer = content;
             }
             Message::TagSelected(tag) => {
-                println!("The id of the selected tag is {:?}", tag);
+                println!("The selected tag is {tag:?}");
             }
             Message::ToggleContextPage(context_page) => {
                 if self.context_page == context_page {
@@ -271,7 +292,6 @@ impl cosmic::Application for AppModel {
             }
 
             Message::UpdateConfig(config) => {
-                println!("The config of this app has been changed: {:?}", config);
                 self.config = config;
             }
 
@@ -290,16 +310,12 @@ impl cosmic::Application for AppModel {
 
             Message::AddFile(path) => {
                 if let Some(path) = path {
-                    let title = path
-                        .file_name()
-                        .and_then(|name| name.to_str())
-                        .unwrap_or("Unknown")
-                        .to_string();
-                    let date = "testdate".to_string();
-                    let doc = Document::from_fields(title, date, path);
+                    let doc = Document::new(&path);
                     self.engine.add_document(doc.clone());
                     self.store.upload_document(&doc);
-                    self.documents.push(doc);
+                    if !self.documents.contains(&doc) {
+                        self.documents.push(doc);
+                    }
                 }
             }
         }
@@ -308,14 +324,9 @@ impl cosmic::Application for AppModel {
 
     /// Called when a nav item is selected.
     fn on_nav_select(&mut self, id: nav_bar::Id) -> Task<cosmic::Action<Self::Message>> {
-        // Activate the page in the model. We probably don't want to automatically active any these at startup'
+        // Activate the page in the model. We probably don't want to automatically active any these at startup
         self.nav.activate(id);
-        if let Some(tag) = self.nav.data::<Tag>(id) {
-            cosmic::task::message(Message::TagSelected(tag.clone()))
-        } else {
-            //this is where we would handle the button for new tags too likely
-            Task::none()
-        }
+        Task::none()
     }
 }
 
