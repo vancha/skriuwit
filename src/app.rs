@@ -6,6 +6,7 @@ use crate::config::Config;
 use crate::fl;
 use crate::models::document::Document;
 use crate::models::tag::Tag;
+use crate::styles::{custom_button_style, selected_button_style};
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::{Alignment, Length, Padding, Pixels, Subscription};
@@ -41,6 +42,7 @@ pub struct AppModel {
     engine: DocumentSearchEngine,
     store: DocumentStore,
     selected_tags:HashSet<Tag>,
+    selected_document: Option<Document>,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -56,6 +58,7 @@ pub enum Message {
     ChooseFile,
     AddFile(Option<PathBuf>),
     TagSelected(Tag),
+    DocumentSelected(Document),
 }
 
 /// Create a COSMIC application from the app model
@@ -118,7 +121,8 @@ impl cosmic::Application for AppModel {
             documents: loaded_documents,
             engine,
             store,
-            selected_tags
+            selected_tags,
+            selected_document: None,
         };
 
         // Create a startup task that sets the window title.
@@ -172,6 +176,7 @@ impl cosmic::Application for AppModel {
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
     fn view(&self) -> Element<Self::Message> {
+        let id : String = "test".to_string();
         Row::from_vec(vec![
             Column::from_vec(
                 self.store
@@ -204,33 +209,17 @@ impl cosmic::Application for AppModel {
                         self.documents
                             .iter()
                             .map(|document| {
-                                Row::with_children(vec![
-                                    icon(document.icon.clone())
-                                        .width(Length::Fixed(100.0))
-                                        .height(Length::Fixed(100.0))
-                                        .into(),
-                                    Column::from_vec(vec![
-                                        text::heading(&document.title).into(),
-                                        Row::from_vec(
-                                            document
-                                                .get_tags()
-                                                .into_iter()
-                                                .map(|tag| button::text(tag.title.as_str()))
-                                                .map(Into::<Element<Message>>::into)
-                                                .collect::<Vec<_>>(),
-                                        )
-                                        .into(),
-                                        text::body(format!(
-                                            "Added: {}",
-                                            document.pretty_print_added_date()
-                                        ))
-                                        .into(),
-                                    ])
-                                    .into(),
-                                ])
-                                .width(Length::Fill)
+                                let style = if Some(document) == self.selected_document.as_ref() {
+                                    selected_button_style()
+                                } else {
+                                    custom_button_style()
+                                };
+                                button::custom(document.view())
+                                .class(style)
+                                .on_press(Message::DocumentSelected(document.clone()))
                                 .into()
                             })
+                                
                             .collect::<Vec<_>>(),
                     )
                     .spacing(Pixels::from(20.0))
@@ -244,6 +233,11 @@ impl cosmic::Application for AppModel {
             .width(Length::FillPortion(3))
             .height(Length::Fill)
             .into(),
+            Column::from_vec(vec![]) // will show selected document
+            .spacing(Pixels::from(20.0))
+            .padding(Padding::from(20))
+            .width(Length::FillPortion(3))
+            .height(Length::Fill).into(),
         ])
         .width(Length::Fill)
         .height(Length::Fill)
@@ -330,6 +324,10 @@ impl cosmic::Application for AppModel {
                         self.documents.push(doc);
                     }
                 }
+            }
+
+            Message::DocumentSelected(doc) => {
+                self.selected_document = Some(doc);
             }
         }
         Task::none()
