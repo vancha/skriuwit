@@ -1,8 +1,10 @@
 use crate::models::document::Document;
+use crate::models::tag::Tag;
 
 #[derive(Clone, Debug)]
 pub struct DocumentStore {
 	documents: Vec<Document>,
+	tags: Vec<Tag>,
 }
 
 impl DocumentStore {
@@ -14,7 +16,7 @@ impl DocumentStore {
             d.title = format!("{}-{}",d.title,i.to_string());
             x.push(d);
         }
-        DocumentStore { documents: x }
+        DocumentStore { documents: x, tags: vec![] }
     }
 
     /*
@@ -28,13 +30,13 @@ impl DocumentStore {
         returns all known tags
     */
     pub fn get_all_tags(self) -> Vec<Tag> {
-
+        self.tags
     }
 
     /*
         registers a new tag, should be stored in the database
     */
-    pub fn register_tag(&mut self) {P
+    pub fn register_tag(&mut self) {
 
     }
     /*

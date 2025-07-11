@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::fl;
 use crate::models::document::Document;
 use crate::models::tag::Tag;
-use crate::styles::{custom_button_style, selected_button_style};
+use crate::styles::{custom_button_style, selected_button_style, tag_button_style };
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::{Alignment, Length, Padding, Pixels, Subscription};
@@ -184,7 +184,7 @@ impl cosmic::Application for AppModel {
                     .into_iter()
                     .map(|tag| {
                         button::text(tag.clone().title)
-                            //.style()
+                            .class( if self.selected_tags.contains(&tag) { tag_button_style( tag.get_color() ) } else { cosmic::style::Button::default() } )
                             .width(Length::Fill)
                             .on_press(Message::TagSelected(tag.clone()))
                     })
@@ -209,17 +209,11 @@ impl cosmic::Application for AppModel {
                         self.documents
                             .iter()
                             .map(|document| {
-                                let style = if Some(document) == self.selected_document.as_ref() {
-                                    selected_button_style()
-                                } else {
-                                    custom_button_style()
-                                };
                                 button::custom(document.view())
-                                .class(style)
+                                .class(if Some(document) == self.selected_document.as_ref() {  selected_button_style() } else { cosmic::style::Button::default() } )
                                 .on_press(Message::DocumentSelected(document.clone()))
                                 .into()
                             })
-                                
                             .collect::<Vec<_>>(),
                     )
                     .spacing(Pixels::from(20.0))
@@ -233,11 +227,11 @@ impl cosmic::Application for AppModel {
             .width(Length::FillPortion(3))
             .height(Length::Fill)
             .into(),
-            Column::from_vec(vec![]) // will show selected document
+            /*Column::from_vec(vec![]) // will show selected document
             .spacing(Pixels::from(20.0))
             .padding(Padding::from(20))
             .width(Length::FillPortion(3))
-            .height(Length::Fill).into(),
+            .height(Length::Fill).into(),*/
         ])
         .width(Length::Fill)
         .height(Length::Fill)
@@ -327,7 +321,18 @@ impl cosmic::Application for AppModel {
             }
 
             Message::DocumentSelected(doc) => {
-                self.selected_document = Some(doc);
+                match self.selected_document.as_ref() {
+                    Some(current_document) => {
+                        if current_document == &doc {
+                         self.selected_document =None;
+                        } else {
+                            self.selected_document = Some(doc);
+                        }
+                    }
+                    None => {
+                        self.selected_document = Some(doc);
+                    }
+                }
             }
         }
         Task::none()
