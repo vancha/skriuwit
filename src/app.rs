@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::fl;
 use crate::models::document::Document;
 use crate::models::tag::Tag;
-use crate::styles::{custom_button_style, selected_button_style, tag_button_style };
+use crate::styles::{custom_button_style, selected_button_style, tag_button_style};
 use cosmic::app::context_drawer;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::{Alignment, Length, Padding, Pixels, Subscription};
@@ -16,8 +16,8 @@ use cosmic::widget::{
 };
 use cosmic::{cosmic_theme, theme};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps/icon.svg");
@@ -25,8 +25,11 @@ const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
 pub struct AppModel {
-    ///A string meant to hold the state of the text_input used for filtering documents
+    ///Meant to hold the state of the text_input used for filtering documents
     search_field_buffer: String,
+    //Meant to hold the state of the entry field for adding a tag
+    new_tag_buffer: String,
+    creating_tag: bool,
     /// Application state which is managed by the COSMIC runtime.
     core: cosmic::Core,
     /// Display a context drawer with the designated page if defined.
@@ -41,7 +44,7 @@ pub struct AppModel {
     documents: Vec<Document>, //DocumentManager,
     engine: DocumentSearchEngine,
     store: DocumentStore,
-    selected_tags:HashSet<Tag>,
+    selected_tags: HashSet<Tag>,
     selected_document: Option<Document>,
 }
 
@@ -54,6 +57,10 @@ pub enum Message {
     UpdateConfig(Config),
     //project specific messages
     SearchFieldInputChanged(String),
+    //toggles the text input for a new tag
+    NewTagButtonPressed,
+    TagNameInputChanged(String),
+    NewTagCreated,
     LaunchUrl(String),
     ChooseFile,
     AddFile(Option<PathBuf>),
@@ -91,6 +98,7 @@ impl cosmic::Application for AppModel {
         // Create a nav bar with three page items.
         let context_page = ContextPage::default();
         let search_field_buffer = String::from("");
+        let new_tag_buffer = String::from("");
         let key_binds = HashMap::new();
         let mut engine = DocumentSearchEngine::new();
         let store = DocumentStore::new();
@@ -109,13 +117,19 @@ impl cosmic::Application for AppModel {
             engine.add_document(doc.clone());
         }
         let selected_tags = HashSet::new();
+        let mut core = core.clone();
+        //makes sure the nav bar is closed on app startup, where not using it anyway
+        core.nav_bar_toggle();
+
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
             core,
             context_page,
             nav,
             search_field_buffer,
+            new_tag_buffer,
             key_binds,
+            creating_tag: false,
             // Optional configuration file for an application.
             config,
             documents: loaded_documents,
@@ -176,27 +190,53 @@ impl cosmic::Application for AppModel {
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
     fn view(&self) -> Element<Self::Message> {
-        let id : String = "test".to_string();
+        let mut tag_column = Column::new().spacing(Pixels::from(5.0));
+
+        for tag in self.store.get_all_tags() {
+            let tag_button = button::text(tag.clone().title)
+                .class(if self.selected_tags.contains(&tag) {
+                    tag_button_style(tag.get_color())
+                } else {
+                    cosmic::style::Button::default()
+                })
+                .width(Length::Fill)
+                .on_press(Message::TagSelected(tag.clone()));
+
+            tag_column = tag_column.push(tag_button);
+        }
+        // Now add either "+ Add Tag" button or the input field with submit button:
+        if self.creating_tag {
+            tag_column = tag_column
+                .push(
+                    Row::new()
+                        .spacing(Pixels::from(5.0))
+                        .push(
+                            text_input("New tag...", &self.new_tag_buffer)
+                                .on_input(Message::TagNameInputChanged), //.on_submit(Message::NewTagCreated)
+                        )
+                        .push(
+                            cosmic::iced::widget::button("Press me!")
+                                .on_press(Message::NewTagCreated),
+                        ),
+                )
+                .into();
+        } else {
+            tag_column = tag_column.push(
+                button::text("+ Add new Tag")
+                    .on_press(Message::NewTagButtonPressed)
+                    .width(Length::Fill),
+            );
+        }
+
+        let id: String = "test".to_string();
         Row::from_vec(vec![
-            Column::from_vec(
-                self.store
-                    .get_all_tags()
-                    .into_iter()
-                    .map(|tag| {
-                        button::text(tag.clone().title)
-                            .class( if self.selected_tags.contains(&tag) { tag_button_style( tag.get_color() ) } else { cosmic::style::Button::default() } )
-                            .width(Length::Fill)
-                            .on_press(Message::TagSelected(tag.clone()))
-                    })
-                    .map(Into::<Element<Message>>::into)
-                    .collect::<Vec<_>>(),
-            )
-            .width(if !self.core.nav_bar_active() {
-                Length::Fixed(288.0)
-            } else {
-                Length::Fixed(0.0)
-            })
-            .into(),
+            tag_column
+                .width(if !self.core.nav_bar_active() {
+                    Length::Fixed(288.0)
+                } else {
+                    Length::Fixed(0.0)
+                })
+                .into(),
             Column::from_vec(vec![
                 text_input("Search", &self.search_field_buffer)
                     .on_input(Message::SearchFieldInputChanged)
@@ -210,9 +250,13 @@ impl cosmic::Application for AppModel {
                             .iter()
                             .map(|document| {
                                 button::custom(document.view())
-                                .class(if Some(document) == self.selected_document.as_ref() {  selected_button_style() } else { cosmic::style::Button::default() } )
-                                .on_press(Message::DocumentSelected(document.clone()))
-                                .into()
+                                    .class(if Some(document) == self.selected_document.as_ref() {
+                                        selected_button_style()
+                                    } else {
+                                        cosmic::style::Button::default()
+                                    })
+                                    .on_press(Message::DocumentSelected(document.clone()))
+                                    .into()
                             })
                             .collect::<Vec<_>>(),
                     )
@@ -227,11 +271,6 @@ impl cosmic::Application for AppModel {
             .width(Length::FillPortion(3))
             .height(Length::Fill)
             .into(),
-            /*Column::from_vec(vec![]) // will show selected document
-            .spacing(Pixels::from(20.0))
-            .padding(Padding::from(20))
-            .width(Length::FillPortion(3))
-            .height(Length::Fill).into(),*/
         ])
         .width(Length::Fill)
         .height(Length::Fill)
@@ -270,6 +309,27 @@ impl cosmic::Application for AppModel {
 
             Message::SearchFieldInputChanged(content) => {
                 self.search_field_buffer = content;
+            }
+
+            Message::NewTagButtonPressed => {
+                self.creating_tag = !self.creating_tag;
+            }
+
+            //a user is actively typing the name of a new tag
+            Message::TagNameInputChanged(content) => {
+                self.new_tag_buffer = content;
+            }
+            //at this point, the tag name is entered, and the "save tag" button pressed
+            Message::NewTagCreated => {
+                //get the tag name
+                let title = self.new_tag_buffer.to_string();
+                //update state
+                self.new_tag_buffer = String::from("");
+                self.creating_tag = false;
+                //store tag
+                let mut tag = Tag::from_fields(title, String::from("#00ff00"), false);
+                //Only at this point, when it's saved the database, will it receive an ID
+                tag.id = self.store.upload_tag(&tag);
             }
 
             Message::TagSelected(tag) => {
@@ -320,30 +380,30 @@ impl cosmic::Application for AppModel {
                 }
             }
 
-            Message::DocumentSelected(doc) => {
-                match self.selected_document.as_ref() {
-                    Some(current_document) => {
-                        if current_document == &doc {
-                         self.selected_document =None;
-                        } else {
-                            self.selected_document = Some(doc);
-                        }
-                    }
-                    None => {
+            Message::DocumentSelected(doc) => match self.selected_document.as_ref() {
+                Some(current_document) => {
+                    if current_document == &doc {
+                        self.selected_document = None;
+                    } else {
                         self.selected_document = Some(doc);
                     }
                 }
-            }
+                None => {
+                    self.selected_document = Some(doc);
+                }
+            },
         }
         Task::none()
     }
-
-    /// Called when a nav item is selected.
+    fn nav_bar(&self) -> Option<Element<'_, cosmic::action::Action<Self::Message>>> {
+        None
+    }
+    /*/ Called when a nav item is selected.
     fn on_nav_select(&mut self, id: nav_bar::Id) -> Task<cosmic::Action<Self::Message>> {
         // Activate the page in the model. We probably don't want to automatically active any these at startup
         self.nav.activate(id);
         Task::none()
-    }
+    }*/
 }
 
 impl AppModel {

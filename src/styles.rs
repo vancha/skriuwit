@@ -54,22 +54,25 @@ pub fn selected_button_style() -> Button {
 }
 
 pub fn tag_button_style(color: Color) -> Button {
+    let active_color = color.clone();
     Button::Custom {
-        active: Box::new(|_focused, _theme| Style {
-            background: Some(Background::Color(color!(0x2A, 0x79, 0xD8))),
+        active: Box::new(move |_focused, _theme| Style {
+            background: Some(Background::Color(active_color)),
+            border_radius: Radius::from(10.0),
 	        ..button::Style::default()
         }),
 
-        disabled: Box::new(|_theme| Style {
-            background: Some(Background::Color(color!(0x2A, 0x79, 0xD8))),
+        disabled: Box::new(move |_theme| Style {
+            border_radius: Radius::from(10.0),
      	    ..button::Style::default()
         }),
-        hovered: Box::new(|_focused, _theme| Style {
-            background: Some(Background::Color(color!(0x2A, 0x79, 0xD8))),
+        hovered: Box::new(move |_focused, _theme| Style {
+            background: Some(Background::Color(active_color)),
+            border_radius: Radius::from(10.0),
 	        ..button::Style::default()
         }),
-        pressed: Box::new(|_focused, _theme| Style {
-            background: Some(Background::Color(color!(0xAF, 0x00, 0xFF))),
+        pressed: Box::new(move |_focused, _theme| Style {
+            border_radius: Radius::from(10.0),
             ..button::Style::default()
         }),
     }

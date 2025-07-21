@@ -16,25 +16,19 @@ impl DocumentStore {
 
         let conn = Connection::open(&db_path).unwrap();
 
-        conn.execute(
+        conn.execute_batch(
             // In a future this will save more stuff, icon maybe?, some extra properties?, whatever, save it here.
             "CREATE TABLE IF NOT EXISTS documents (
                 title TEXT NOT NULL,
                 added_date BIGINT NOT NULL,
                 path TEXT PRIMARY KEY
-            )",
-            (),
-        )
-        .unwrap();
-
-        conn.execute(
-            // In a future this will save more stuff, icon maybe?, some extra properties?, whatever, save it here.
-            "CREATE TABLE IF NOT EXISTS tags (
-                id  INTEGER PRIMARY KEY,
+            );
+            CREATE TABLE IF NOT EXISTS tags (
+                id  INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
-                color TEXT NOT NULL
-            )",
-            (),
+                hex_color TEXT NOT NULL,
+                selected INTEGER NOT NULL DEFAULT 0
+            );",
         )
         .unwrap();
 
@@ -95,15 +89,16 @@ impl DocumentStore {
     pub fn get_all_tags(&self) -> Vec<Tag> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, title, color FROM tags")
+            .prepare("SELECT id, title, hex_color, selected FROM tags")
             .unwrap();
 
         let tag_iter = stmt
             .query_map([], |row| {
-                Ok(Tag::from_fields(
+                Ok(Tag::new(
                     row.get(0).unwrap(),
                     row.get(1).unwrap(),
                     row.get(2).unwrap(),
+                    row.get::<_, i32>(3).unwrap() != 0,
                 ))
             })
             .unwrap();
@@ -115,12 +110,16 @@ impl DocumentStore {
 
         tags
     }
-    pub fn upload_tag(&self, tag: &Tag) {
+
+    //Only at this point does a tag receive an ID, that gets returned if the query was successful
+    pub fn upload_tag(&self, tag: &Tag) -> Option<i64> {
         self.conn
             .execute(
-                "INSERT OR IGNORE INTO tags (id, title, color) VALUES (?1, ?2, ?3)",
-                params![tag.id, tag.title, tag.hex_color],
+                "INSERT OR IGNORE INTO tags (title, hex_color, selected) VALUES (?1, ?2, ?3)",
+                params![tag.title, tag.hex_color, tag.selected as i32],
             )
             .unwrap();
+
+        Some(self.conn.last_insert_rowid())
     }
 }
