@@ -338,7 +338,12 @@ impl cosmic::Application for AppModel {
                 } else {
                     self.selected_tags.remove(&tag);
                 }
-                self.engine.filter_by_tags(vec![]);
+
+                self.documents = if self.selected_tags.is_empty() {
+                    self.engine.get_all_documents().into_iter().cloned().collect()
+                } else {
+                    self.engine.filter_by_tags(&self.selected_tags).into_iter().cloned().collect()
+                };
             }
 
             Message::ToggleContextPage(context_page) => {

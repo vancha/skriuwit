@@ -28,7 +28,9 @@ impl Tag {
     }
 
     pub fn get_color(&self) -> Color {
-        Color::parse(&self.hex_color).unwrap()
+        let mut color = Color::parse(&self.hex_color).unwrap();
+        color.a = 0.5;
+        color
     }
 }
 

@@ -1,6 +1,7 @@
 use chrono::DateTime;
 use cosmic::widget::icon;
 use std::path::{Path, PathBuf};
+use std::collections::HashSet;
 use crate::models::tag::Tag;
 use cosmic::{Element, widget::{Row, Column, button, text}};
 use crate::app::Message;
@@ -14,7 +15,7 @@ pub struct Document {
     ///date as a timestamp
     pub added_date: i64,
     pub path: PathBuf,
-    pub tags: Vec<Tag>,
+    pub tags: HashSet<Tag>,//Vec<Tag>,
 }
 
 impl Document {
@@ -27,7 +28,7 @@ impl Document {
             .to_string();
         let added_date = chrono::Local::now().timestamp();
         let path = path.to_path_buf();
-        let tags = vec![];
+        let tags = HashSet::new();//vec![];
 
         Self {
             icon,
@@ -46,7 +47,7 @@ impl Document {
             title,
             added_date,
             path,
-            tags:vec![],
+            tags: HashSet::new(),//vec![],
         }
     }
 

@@ -1,6 +1,8 @@
 use crate::models::document::Document;
 use std::path::Path;
 use crate::models::tag::Tag;
+use std::collections::HashSet;
+
 
 pub struct DocumentSearchEngine {
     // Structures used to search faster
@@ -28,9 +30,11 @@ impl DocumentSearchEngine {
     }
 
     //should get a list of tags
-    pub fn filter_by_tags(&self, tags: Vec<Tag>) -> Vec<&Document> {
-        self.data
-            .iter()
-            .filter(|doc| doc.tags.iter().any(|doc_tag|tags.contains(doc_tag)) ).collect::<Vec<_>>()
+   pub fn filter_by_tags<'a>(&'a self, selected_tags: &HashSet<Tag>) -> Vec<&'a Document> {
+    self.data
+        .iter()
+        .filter(|doc| doc.tags.iter().any(|tag| selected_tags.contains(tag)))
+        .collect()
     }
 }
+
